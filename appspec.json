@@ -1,77 +1,170 @@
 {
-  "version": "1.2",
+  cap_status = NULL, nest_coords = NULL, single_blk_merge = TRUE, gr_speed = FALSE, bursts_rec = FALSE,
+                     max_flight_sp = 40, dst_stat_gap = 30, time_stat_gap = 3, centr_dist = 50, near_blk_dist = 20, near_stop_rec = 1, 
+                     near_stat_dist = 5, clust_min_rec = 2, br_win_min = 30
+  "version": "1.0.0",
   "settings": [
     {
-      "id": "sdk",
-      "name": "The name of the MoveApps SDK",
-      "description": "Showcase requesting a string input from the users of your app.",
-      "defaultValue": "MoveApps SDK",
+      "id": "cap_status",
+      "name": "Capture status of a bird",
+      "description": "Capture status of a bird during tagging. ‘winter’ when tagged on the wintering grounds, ‘breed’ when tagged on the breeding grounds. Birds tagged at stopover sites should be assigned to ‘winter’ if the location is closer to wintering grounds, and ‘breed’ if closer to breeding grounds. Alternatively, nest coordinates can be supplied.",
+      "defaultValue": null,
       "type": "STRING"
     },
     {
-      "id": "year",
-      "name": "The year",
-      "description": "Insert description for the year setting setting",
-      "defaultValue": 2022,
-      "type": "INTEGER"
+      "id": "nest_coords",
+      "name": "Nest coordinates",
+      "description": "Nest coordinates (longitude, latitude) supplied in decimal format and WGS84 coordinate system. Alternatively, capture status of a bird during tagging can be provided.",
+      "defaultValue": null,
+      "type": "STRING"
     },
     {
-      "id": "auxiliary-file-a",
-      "name": "Personalization",
-      "description": "You can personalize the app by providing a file",
-      "type": "USER_FILE"
+      "id": "single_blk_merge",
+      "name": "Merge single-row blocks",
+      "description": "Merge single-row blocks of migration or stationary records with the neighbouring blocks.",
+      "defaultValue": true,
+      "type": "CHECKBOX""
+    },
+    {
+      "id": "gr_speed",
+      "name": "Ground speed",
+      "description": "Use the ground speed measured by GPS instead of the speed between consecutive records.",
+      "defaultValue": false,
+      "type": "CHECKBOX""
+    },
+    {
+      "id": "bursts_rec",
+      "name": "Bursts in the records",
+      "description": "Preserve bursts in the data, i.e. very frequent records.",
+      "defaultValue": false,
+      "type": "CHECKBOX""
+    },
+    {
+      "id": "max_flight_sp",
+      "name": "Maximum reasonable speed of flight",
+      "description": "Set the highest reasonable speed of bird flight (m/s). The value may be a bit larger than the highest know speed of flight of a given bird species to preserve exceptional but real fast flights. Default value is 40 m/s.",
+      "defaultValue": 40,
+      "type": "DOUBLE""
+    },
+    {
+      "id": "dst_stat_gap",
+      "name": "Distance gap between consecutive records",
+      "description": "Set the limit distance (km) between two consecutive records above which the records will be split into two block. Default value is 30 km.",
+      "defaultValue": 30,
+      "type": "DOUBLE""
+    },
+    {
+      "id": "time_stat_gap",
+      "name": "Time gap between consecutive records",
+      "description": "Set the limit time (hours) between two consecutive records above which the records will be split into two block. Default value is 3 hours.",
+      "defaultValue": 3,
+      "type": "DOUBLE""
+    },
+    {
+      "id": "centr_dist",
+      "name": "Distance for distinguishing breeding from wintering grounds.",
+      "description": "Set the limit distance (km) below which breeding and wintering grounds are not separated from each other, i.e. the bird did not migrate. Default value is 50 km.",
+      "defaultValue": 50,
+      "type": "DOUBLE""
+    },
+    {
+      "id": "near_blk_dist",
+      "name": "Distance between near (neighbouring) blocks.",
+      "description": "Distance (km) below which two near (neighbouring) blocks of stationary records are merged. Default value is 20 km.",
+      "defaultValue": 20,
+      "type": "DOUBLE""
+    },
+    {
+      "id": "near_stop_rec",
+      "name": "Distance for detection of ‘outlier’ records in stopover blocks.",
+      "description": "Distance (km) above which the neighbouring records in a stopover block are considered ‘outliers’ and reclassified as migratory records. Default value is 1 km.",
+      "defaultValue": 1,
+      "type": "DOUBLE""
+    },
+    {
+      "id": "clust_min_rec",
+      "name": "Minimum number of records in a stopover block.",
+      "description": "Minimum number of records in a stopover block to be checked for ‘outliers’. Default value is 2.",
+      "defaultValue": 2,
+      "type": "INTEGER""
+    },
+    {
+      "id": "near_stat_dist",
+      "name": "Distance for detection of new stationary blocks.",
+      "description": "Distance (km) above which the neighbouring records in a stationary block are assigned to a new block. Default value is 5 km.",
+      "defaultValue": 5,
+      "type": "INTEGER""
+    },
+    {
+      "id": "br_win_min",
+      "name": "Minimum length of a breeding or wintering block.",
+      "description": "Minimum length (days) of a block of records to be recognized as breeding or wintering grounds. Default value is 30 days.",
+      "defaultValue": 30,
+      "type": "INTEGER""
     }
-  ],
+    ],
   "dependencies": {
     "R": [
+      {
+        "name": "dplyr"
+      },
+      {
+        "name": "fpc"
+      },
+      {
+        "name": "geodist"
+      },
       {
         "name": "lubridate"
       },
       {
         "name": "move2"
+      },
+      {
+        "name": "purrr"
+      },
+      {
+        "name": "sf"
+      },
+      {
+        "name": "stringr"
+      },
+      {
+        "name": "tidyr"
       }
     ]
   },
-  "providedAppFiles": [
-    {
-      "settingId": "auxiliary-file-a",
-      "from": "data/auxiliary/user-files/provided-app-files/auxiliary-file-a/sample.txt"
-    }
-  ],
   "license": {
     "key": "MIT"
   },
   "language": "eng",
   "keywords": [
-    "example",
-    "template"
+    "bird migration",
+    "stopover",
+    "wintering",
+    "breeding",
+    "clustering"
   ],
   "people": [
     {
-      "firstName": "Charles",
+      "firstName": "Jan",
       "middleInitials": null,
-      "lastName": "Darwin",
-      "email": "creator@example.com",
-      "roles": [
-        "author",
-        "creator"
-      ],
-      "orcid": null,
-      "affiliation": null,
-      "affiliationRor": null
+      "lastName": "Hanzelka",
+      "email": "hanzelka@ivb.cz",
+      "roles": ["author", "creator"],
+      "orcid": "0000-0002-2377-280X",
+      "affiliation": ["Czech Academy of Sciences, Institute of Vertebrate Biology",
+      "Charles University, Faculty of Science, Institute for Environmental Studies"]
+      "affiliationRor": ["https://ror.org/05bcgdd94", "https://ror.org/024d6js02"]
     }
   ],
   "funding": [
     {
-      "name": "funder name",
-      "comment": "grant for App"
+      "name": "European Union, Horizon Europe programme",
+      "comment": "HORIZON-CL6-2023-BIODIV-01-4"
     }
   ],
-  "references": [
-    {
-      "type": "IsDescribedBy",
-      "note": "Darwin, C. 1900. The creation. Journal XY. 1-2",
-      "url": "https://anylink.xyz"
-    }
-  ]
+  "documentation" : {
+    "url": "https://github.com/janhanz/migr-bird-class/blob/master/README.md"
+  }
 }

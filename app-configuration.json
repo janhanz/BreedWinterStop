@@ -1,4 +1,16 @@
 {
-    "sdk": "MoveApps R SDK",
-    "year": 2014
+	"cap_status": "breed",
+	"nest_coords": null,
+	"single_blk_merge": true,
+	"gr_speed": false,
+	"bursts_rec": false,
+	"max_flight_sp": 40,
+	"dst_stat_gap": 30,
+	"time_stat_gap": 3,
+	"centr_dist": 50,
+	"near_blk_dist": 20,
+	"near_stop_rec": 1, 
+	"near_stat_dist": 5,
+	"clust_min_rec": 2,
+	"br_win_min": 30
 }
