@@ -12,7 +12,7 @@ An algorithm distinguishing migration from stationary (non-migration) records in
 
 The App was developed for the purpose of automated detection of breeding sites, wintering sites, and stopovers in multi-year GPS tracking data of migratory birds investigated in [HABITRACK](https://habitrack.eu/?lang=en) project.
 
-<center>![](images/logo5-01.png){width="107"}</center>
+<center>![](images/logo5.png){width="107"}</center>
 
 The algorithm uses either the speed between consecutive records or ground speed derived from GPS devices to run K-means clustering to distinguish between migration and stationary records in the tracks. Stationary records are then classified into breeding grounds and wintering grounds based on the information on bird status when tagged. The user supplies whether the bird was tagged on (or closer) to breeding grounds or wintering grounds. Alternatively, WGS84 coordinates of bird's nest can be supplied. This information allows K-means analysis to distinguish blocks of breeding and wintering records. Those blocks being shorter than the user defined minimum period of stay in the breeding grounds are subsequently assigned to stopover sites. Additional steps using DBSCAN clustering split incoherent blocks of stationary records, and reassign outlying stopover records to migration, to increase the precision of data classification.
 
