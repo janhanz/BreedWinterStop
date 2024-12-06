@@ -24,7 +24,7 @@ The algorithm uses either the speed between consecutive records or ground speed 
 
 #### Generality of App usability
 
-This App was developed to identify breeding and wintering grounds and stopover sites in GPS tracking data of Eurasian Curlew (*Numenius arquata*), and was also tested on the tracking data of other bird species in the HABITRACK project. It should be able to distinguish the mentioned stages of the annual cycle in many migratory bird species if the migration movement is distinguished from the stationary stages by clearly different speeds and if the time spent in breeding or wintering grounds is substantially different from the length of stays in stopovers. Otherwise, blocks of breeding or wintering grounds may be distinguished in unexpected locations and checked manually for their relevancy.
+This App was developed to identify breeding and wintering grounds and stopover sites in GPS tracking data of Eurasian Curlew (*Numenius arquata*), and was also tested on the tracking data of other bird species in the HABITRACK project. It should be able to distinguish the mentioned stages of the annual cycle in many migratory bird species if the migration movement is distinguished from the stationary stages by clearly different speeds and if the time spent on breeding or wintering grounds is substantially different from the length of stays in stopovers. Otherwise, blocks of breeding or wintering grounds may be distinguished in unexpected locations and needs to be checked manually for their relevancy.
 
 #### Required data properties
 
@@ -42,13 +42,13 @@ The App may provide acceptable classification results even for data with a lower
 
 ### Artefacts
 
-`"Classification_records_summary_", bird_ID, ".csv"`: CSV file with a summary of stationary blocks of records. It shows `Bird_ID`, the range of rows (`First_row`, `Last_row`), number of each block (`Block_nr`), `Block_type` (stationary or migration), `Block_class` (breeding, wintering, stopover sites), `Block_size` (in km), distance to the consecutive stationary block (`Dist_next_stat`, in km), UTC time and calendar date (`Start_date`, `End_date`) and duration of stay in each block (separately in `Days`, `Hours`, and `Minutes`), WGS84 coordinates (longitude, latitude) of the centroids of the blocks (`Long_centr`, `Lat_centr`), and and corresponding to the output file.
+`"Classification_records_summary_", bird_ID, ".csv"`: CSV file with a summary of stationary blocks of records. It shows `Bird_ID`, the range of rows (`First_row`, `Last_row`) for each block, number of each block (`Block_nr`), `Block_type` (stationary or migration), `Block_class` (breeding, wintering, stopover sites), `Block_size` (in km), distance to the consecutive stationary block (`Dist_next_stat`, in km), UTC time and calendar date (`Start_date`, `End_date`) and duration of stay in each block (separately in `Days`, `Hours`, and `Minutes`), and WGS84 coordinates (longitude, latitude) of the centroids of the blocks (`Long_centr`, `Lat_centr`), corresponding to the output file.
 
 `"Classification_records_", bird_ID, ".csv"`: CSV file with the complete output. It shows `Bird_ID`, and for each record, block number (`Block_nr`), `Block_type` (stationary or migration), `Block_class` (migration, wintering, breeding, stopover site), `Block_size` (in km), distance to the next record (`Dist_consec`, in m), consecutive and/or ground speed (`Speed_consec` or `Speed_gr`, in m/s), separately the `Year`, `Month`, `Day`, `Hour`, `Minute` and `Second`, the UTC `Timestamp`, and WGS84 coordinates (`Long`, `Lat`).
 
 ### Settings
 
-**Capture status of a bird** (`cap_status`): Capture status of a bird during tagging. ‘winter’ when tagged on the wintering grounds, ‘breed’ when tagged on the breeding grounds. Birds tagged at stopover sites should be assigned to ‘winter’ if the location is closer to wintering grounds, and ‘breed’ if closer to breeding grounds. Alternatively, nest coordinates can be supplied.
+**Capture status of a bird** (`cap_status`): Capture status of a bird during tagging. ‘winter’ when tagged on the wintering grounds, ‘breed’ when tagged on the breeding grounds. Birds tagged at stopover sites should be assigned to ‘winter’ if the location is closer to assumed wintering grounds, and ‘breed’ if closer to assumed breeding grounds. Alternatively, nest coordinates can be supplied.
 
 **Nest coordinates** (`nest_coords`): Nest coordinates (longitude, latitude) supplied in decimal format and WGS84 coordinate system, for instance c(Long = 2.3593, Lat = 48.8415). Alternatively, capture status of a bird during tagging can be provided.
 
