@@ -14,7 +14,7 @@
     {
       "id": "nest_coords",
       "name": "Nest coordinates",
-      "description": "Nest coordinates (longitude, latitude) supplied in decimal format and WGS84 coordinate system. Alternatively, capture status of a bird during tagging can be provided.",
+      "description": "Nest coordinates (longitude, latitude) supplied in decimal format and WGS84 coordinate system, for instance c(Long = 2.3593, Lat = 48.8415). Alternatively, capture status of a bird during tagging can be provided.",
       "defaultValue": null,
       "type": "STRING"
     },
@@ -48,15 +48,15 @@
     },
     {
       "id": "dst_stat_gap",
-      "name": "Distance gap between consecutive records",
-      "description": "Set the limit distance (km) between two consecutive records above which the records will be split into two block. Default value is 30 km.",
+      "name": "Distance gap between consecutive stationary records",
+      "description": "Set the limit distance (km) between two consecutive stationary records above which the records will be split into two block. Default value is 30 km.",
       "defaultValue": 30,
       "type": "DOUBLE""
     },
     {
       "id": "time_stat_gap",
-      "name": "Time gap between consecutive records",
-      "description": "Set the limit time (hours) between two consecutive records above which the records will be split into two block. Default value is 3 hours.",
+      "name": "Time gap between consecutive stationary records",
+      "description": "Set the limit time (hours) between two consecutive stationary records above which the records will be split into two block. Default value is 3 hours.",
       "defaultValue": 3,
       "type": "DOUBLE""
     },
@@ -93,14 +93,14 @@
       "name": "Distance for detection of new stationary blocks.",
       "description": "Distance (km) above which the neighbouring records in a stationary block are assigned to a new block. Default value is 5 km.",
       "defaultValue": 5,
-      "type": "INTEGER""
+      "type": "DOUBLE""
     },
     {
       "id": "br_win_min",
       "name": "Minimum length of a breeding or wintering block.",
       "description": "Minimum length (days) of a block of records to be recognized as breeding or wintering grounds. Default value is 30 days.",
       "defaultValue": 30,
-      "type": "INTEGER""
+      "type": "DOUBLE""
     }
     ],
   "dependencies": {

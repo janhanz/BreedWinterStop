@@ -1,5 +1,5 @@
 {
-	"cap_status": "breed",
+	"cap_status": "winter",
 	"nest_coords": null,
 	"single_blk_merge": true,
 	"gr_speed": false,
@@ -12,5 +12,5 @@
 	"near_stop_rec": 1, 
 	"near_stat_dist": 5,
 	"clust_min_rec": 2,
-	"br_win_min": 30
+	"br_win_min": 5
 }

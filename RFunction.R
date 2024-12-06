@@ -1,5 +1,5 @@
 ################
-# script for MoveApp App: Migration and stationary sites
+# script for MoveApp App "Migration and stationary sites"
 ################
 
 # load libraries
@@ -13,29 +13,45 @@ library('sf')
 library('stringr')
 library('tidyr')
 
-# load block size function
-source("Block_size.R")
-
 rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_merge = TRUE, gr_speed = FALSE, bursts_rec = FALSE,
                      max_flight_sp = 40, dst_stat_gap = 30, time_stat_gap = 3, centr_dist = 50, near_blk_dist = 20, near_stop_rec = 1, 
                      near_stat_dist = 5, clust_min_rec = 2, br_win_min = 30) {
   
+  # function for the calculation of the maximum distances in groups of migration and stationary records
+  block_size_fun <- function(x) {
+    bbox <- st_bbox(x$geometry)
+    rec_dist_geom <- x %>% 
+      filter(Long < bbox$xmin+0.001 | Long > bbox$xmax-0.001 | Lat < bbox$ymin+0.001 | Lat > bbox$ymax-0.001)
+    # maximum migration distance (in km)
+    max_migr_dst <- max(geodist(x = rec_dist_geom %>% select("Long", "Lat"), measure = "cheap", paired = TRUE, quiet = TRUE))/1000
+    return(max_migr_dst)
+  }
+  
   if (is.null(cap_status) & is.null(nest_coords)) {
     logger.error("Error: Bird capture status or coordinates of the nest are required!")
+    return(data)
   }
   
   if (!is.null(cap_status) & !is.null(nest_coords)) {
     logger.error("Error: Only one of nest coordinates or bird capture status are allowed!")
+    return(data)
   }
   
   if (!is.null(cap_status)) {
     if (!(cap_status %in% c("winter", "breed"))) {
       logger.error(paste0("Error: Invalid input of the bird breeding status! Only ‘winter’ or ‘breed’ are allowed."))
+      return(data)
     }
   }
   
   if (bursts_rec & !gr_speed) {
     logger.error("Error: Bursts can be preserved only when ground speed is used!")
+    return(data)
+  }
+  
+  if (clust_min_rec < 2) {
+    logger.error("Error: Minimum number of records in a stopover block checked for ‘outliers’ is 2!")
+    return(data)
   }
 
   if(single_blk_merge) {
@@ -55,27 +71,27 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   
   ### load data
   
-  # essential variables: UTC_Timestamp and geometry (geographic coordinates in a single column)
-  # optional variables: Hdop (horizontal dilution of precision), SatCount (number of satellites used in a fix),
-  #                     Speed_gr (ground speed derived from GPS, in m/s)
+  # essential variables: timestamp and geometry (geographic coordinates in a single column)
+  # optional variables: gps_hdop (horizontal dilution of precision), gps_satellite_count (number of satellites used in a fix),
+  #                     ground_speed (ground speed derived from GPS, in m/s)
   
   # load the data set in move2 format from Movebank.org
-  #data <- readRDS("Lapwing/data/CZP_H152755_F_241520.rds")
+  #data <- readRDS("data/raw/Input_Curlew.rds")
   
   # rename attributes for timestamp
-  attributes(data)$time_column <- "UTC_Timestamp"
+  #attributes(data)$time_column <- "UTC_Timestamp"
   
-  # obtain birdID of a given individual
-  bird_ID <- as.character(attributes(data)$track_data$individual_local_identifier)
+  # obtain bird_ID of a given individual
+  bird_ID <- as.character(unique(mt_track_id(data)))
   
   # rename essential and optional variables
-  dt_raw <- data %>% 
-    rename(any_of(c(UTC_Timestamp = "timestamp", Hdop = "gps_hdop", SatCount = "gps_satellite_count", Speed_gr = "ground_speed")))
+  #dt_raw <- data %>% 
+  # rename(any_of(c(UTC_Timestamp = "timestamp", Hdop = "gps_hdop", SatCount = "gps_satellite_count", Speed_gr = "ground_speed")))
 
   # load and pre-process the data set
   # the auxiliary script filters the data for:
   #  relevant time interval (since deployment to the end of tracking)
-  #  hdop <= 5
+  #  HDOP <= 5
   #  number of GPS satellites >= 4
   # it calculates time (minutes) between records, distance (metres) between records, and speed (m/s) between consecutive records
   source("Prepare_data.R", local = TRUE)
@@ -91,16 +107,21 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     # share of records with >= 60 min apart
     logger.info(paste0(round(sum(dt$Time_consec >= 60)/nrow(dt)*100, 1), " % of intervals between records is >= 60 min"))
     # number of records at least 1 day apart
-    logger.info(paste0(sum(dt$Time_consec >= 60 * 24), " records are more than 1 day apart"))
+    if (sum(dt$Time_consec >= 60 * 24) == 1) {
+      logger.info(paste0(sum(dt$Time_consec >= 60 * 24), " record is more than 1 day apart"))
+    } else {
+      logger.info(paste0(sum(dt$Time_consec >= 60 * 24), " records are more than 1 day apart"))
+    }
   }
   
   
   # assign ground speed or speed between consecutive records to the variable Speed
   if (gr_speed) {
-    if (any(colnames(dt) == "Speed_gr")) {
-      dt$Speed <- as.numeric(dt$Speed_gr)
+    if (any(colnames(dt) == "ground_speed")) {
+      dt$Speed <- as.numeric(dt$ground_speed)
     } else {
       logger.error("Error: Ground speed not available in the data set!\n")
+      return(data)
     }
   } else {
     dt <- dt %>% 
@@ -122,32 +143,33 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   
   dt$Block_type <- km_sp$cluster
   
-  # calculate median of speed and its IQR in the clusters
+  # calculate median of speed and Q1 and Q3 in the clusters
   med_sp_cl <- dt %>% 
     st_drop_geometry() %>% 
     group_by(Block_type) %>% 
     summarise(med_sp = median(Speed),
-              iqr_sp = IQR(Speed),
+              Q1_sp = quantile(Speed, 0.25),
+              Q3_sp = quantile(Speed, 0.75),
               .groups = "keep")
   
   med_sp_cl1 <- med_sp_cl %>% filter(Block_type == 1) %>% pull(med_sp) %>% as.numeric()
-  iqr_sp_cl1 <- med_sp_cl %>% filter(Block_type == 1) %>% pull(iqr_sp) %>% as.numeric()
+  Q1_Q3_sp_cl1 <- med_sp_cl %>% ungroup() %>% filter(Block_type == 1) %>% select(c(Q1_sp, Q3_sp)) %>% as.numeric()
   med_sp_cl2 <- med_sp_cl %>% filter(Block_type == 2) %>% pull(med_sp) %>% as.numeric()
-  iqr_sp_cl2 <- med_sp_cl %>% filter(Block_type == 2) %>% pull(iqr_sp) %>% as.numeric()
+  Q1_Q3_sp_cl2 <- med_sp_cl %>% ungroup() %>% filter(Block_type == 2) %>% select(c(Q1_sp, Q3_sp)) %>% as.numeric()
   
   # assign "migration" and "stationary" to the clusters
   if (med_sp_cl1 < med_sp_cl2) {
     dt <- dt %>% 
       mutate(Block_type = recode(Block_type, "1" = "stationary", "2" = "migration"))
-    logger.info(paste0("First block has median (IQR) of speed ", round(med_sp_cl1, 2)," (", round(iqr_sp_cl1, 2), ") m/s."))
-    logger.info(paste0("Second block has median (IQR) of speed ", round(med_sp_cl2, 2), " (", round(iqr_sp_cl2, 2), ") m/s."))
-	logger.info("Stationary and migration clusters were defined.\n")
+      logger.info(paste0("First block has median (Q1, Q3) of speed ", round(med_sp_cl1, 2)," (", round(Q1_Q3_sp_cl1[1], 2), ", ",round(Q1_Q3_sp_cl1[2], 2), ") m/s."))
+      logger.info(paste0("Second block has median (Q1, Q3) of speed ", round(med_sp_cl2, 2)," (", round(Q1_Q3_sp_cl2[1], 2), ", ",round(Q1_Q3_sp_cl2[2], 2), ") m/s."))
+	    logger.info("Stationary and migration clusters were defined.\n")
   } else {
     dt <- dt %>% 
       mutate(Block_type = recode(Block_type, "1" = "migration", "2" = "stationary"))
-	logger.info(paste0("First block has median (IQR) of speed ", round(med_sp_cl1, 2)," (", round(iqr_sp_cl1, 2), ") m/s."))
-    logger.info(paste0("Second block has median (IQR) of speed ", round(med_sp_cl2, 2), " (", round(iqr_sp_cl2, 2), ") m/s."))
-    logger.info("Migration and stationary clusters were defined.\n")
+      logger.info(paste0("First block has median (Q1, Q3) of speed ", round(med_sp_cl1, 2)," (", round(Q1_Q3_sp_cl1[1], 2), ", ",round(Q1_Q3_sp_cl1[2], 2), ") m/s."))
+      logger.info(paste0("Second block has median (Q1, Q3) of speed ", round(med_sp_cl2, 2)," (", round(Q1_Q3_sp_cl2[1], 2), ", ",round(Q1_Q3_sp_cl2[2], 2), ") m/s."))
+      logger.info("Migration and stationary clusters were defined.\n")
   }
 
   # print the number of migration single-row records
@@ -198,10 +220,10 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     # pre-final data set
     # keep ground speed in the data set (if available) even when not used for the classification
     #   it can be used for additional filtering of slow_rec in breeding and wintering grounds in the final output
-    dt_export <- st_as_sf(dt) %>% 
-      select(any_of(c("BirdID","UTC_Timestamp", "Lat", "Long", "Year", "Month", "Day", "Hour", "Minute", "Second",
-                      "Speed", "Speed_gr", "Dist_consec", "Time_consec", "Block_type"))) %>% 
-      {if (gr_speed) select(.,-Speed_gr) else .} %>% 
+    dt_export <- dt %>% 
+      select(any_of(c("event_id", "timestamp", "Lat", "Long", "Year", "Month", "Day", "Hour", "Minute", "Second",
+                      "Speed", "ground_speed", "Dist_consec", "Time_consec", "Block_type"))) %>% 
+      {if (gr_speed) select(.,-ground_speed) else .} %>% 
       mutate(Block_nr = cumsum(Block_type != lag(Block_type, default = first(Block_type)))) %>% 
       mutate("row_nb" = as.numeric(rownames(.))) %>% 
       group_by(Block_nr) %>% 
@@ -215,7 +237,7 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
       pull(row_nb)
     
     if (length(block_div) > 0 & g == 1) { # print the info on gapped blocks only initially
-      logger.info(paste0("Stationary blocks have gaps >", dst_stat_gap, "km (", paste(round(dt_export[block_div,]$Dist_consec/1000,0), collapse = ", "), "km) and >", time_stat_gap, "hours (", paste(round(dt_export[block_div,]$Time_consec/60,0), collapse = ", "), "hours) at row(s):", paste(block_div, collapse = ", "),". Adding groups of records."))
+      logger.info(paste0("Stationary blocks have gaps > ", dst_stat_gap, " km (", paste(round(dt_export[block_div,]$Dist_consec/1000,0), collapse = ", "), " km) and > ", time_stat_gap, " hours (", paste(round(dt_export[block_div,]$Time_consec/60,0), collapse = ", "), " hours) at row(s): ", paste(block_div, collapse = ", "),". Adding groups of records."))
     }
     
     # add +1 to Block_nr where needed and eventually recalculate Block_size
@@ -284,9 +306,8 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
       mutate("row_nb" = as.numeric(rownames(.))) %>% 
       st_as_sf(., coords = c("Long", "Lat"), crs = "EPSG:4326", remove = FALSE) %>% 
       group_by(Block_nr, Block_type) %>%
-      summarise(BirdID = unique(BirdID),
-                Start_date = min(UTC_Timestamp),
-                End_date = max(UTC_Timestamp),
+      summarise(Start_date = min(timestamp),
+                End_date = max(timestamp),
                 First_row = min(row_nb),
                 Last_row = max(row_nb),
                 Days = floor(as.numeric(difftime(End_date, Start_date, units = "days"))),
@@ -395,7 +416,7 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
       if (nrow(dt_kmeans) == 2) {
         # centroids very close (i.e. < centr_dist in km) to each other suggest either wintering or breeding was not detected in the data set 
         if (max(as.numeric(geodist(dt_kmeans %>% select("Long_centr", "Lat_centr"), measure = "geodesic"))/1000) < centr_dist) {
-          logger.info("Breeding and wintering grounds very close to each other (i.e. <", centr_dist, "km).")
+          logger.info("Breeding and wintering grounds very close to each other (i.e. < ", centr_dist, " km).")
           dt_kmeans$Block_class <- rep(status_order[1], 2)
         } else {
           dt_kmeans$Block_class <- status_order
@@ -501,7 +522,6 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
       tab_sum_stat_new <- tab_sum_stat %>%
         group_by(new_group) %>% 
         summarise(Block_type = unique(Block_type),
-                  BirdID = unique(BirdID),
                   Start_date = min(Start_date),
                   End_date = max(End_date),
                   First_row = min(First_row),
@@ -563,9 +583,9 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   dt_export_orig$Block_class <- expand_tab_sum_stat_sep$Block_class
   # replace groups by those in summary
   dt_export_orig$Block_nr <- expand_tab_sum_stat_sep$Block_nr
-  # rename Speed to either Speed_gr (ground speed) or Speed_consec (speed between consecutive records)
+  # rename Speed to either ground_speed (ground speed) or Speed_consec (speed between consecutive records)
   dt_export_orig <- dt_export_orig %>% 
-    rename_with(~ if (gr_speed) {"Speed_gr"} else {"Speed_consec"}, .cols = "Speed")
+    rename_with(~ if (gr_speed) {"ground_speed"} else {"Speed_consec"}, .cols = "Speed")
   
   dt_export_sep <- dt_export_orig
   
@@ -642,9 +662,8 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     mutate("row_nb" = as.numeric(rownames(.))) %>% 
     st_as_sf(., coords = c("Long", "Lat"), crs = "EPSG:4326", remove = FALSE) %>% 
     group_by(Block_nr, Block_type, Block_class) %>%
-    summarise(BirdID = unique(BirdID),
-              Start_date = min(UTC_Timestamp),
-              End_date = max(UTC_Timestamp),
+    summarise(Start_date = min(timestamp),
+              End_date = max(timestamp),
               First_row = min(row_nb),
               Last_row = max(row_nb),
               Days = floor(as.numeric(difftime(End_date, Start_date, units = "days"))),
@@ -659,7 +678,7 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     mutate(Dist_next_stat = c(round(diag(geodist(select(., Long, Lat) %>% slice(-nrow(.)), select(., Long, Lat) %>% slice(-1), measure = "geodesic", quiet = TRUE))/1000,0), NA) %>% 
              round(., 1)) %>% 
     rename(Long_centr = "Long", Lat_centr = "Lat") %>% 
-    relocate(c(BirdID, Block_nr, Block_type, Block_class, Block_size, Dist_next_stat)) %>% 
+    relocate(c(Block_nr, Block_type, Block_class, Block_size, Dist_next_stat)) %>% 
     data.frame() %>% 
     select(-latlong)
   
@@ -677,15 +696,13 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   # print a warning if another breeding grounds, located more than 500 km apart, were identified in a given year
   for (y in unique(year(tab_sum_stat_sep_rev$Start_date))) {
     if (tab_sum_stat_sep_rev %>% 
-        mutate(Year = year(Start_date)) %>% 
-        filter(Year == y & Block_class == "breed") %>% 
+        filter(year(Start_date) == y & Block_class == "breed") %>% 
         nrow == 0) {
       next
-    }
+    } else {
     
     breed_sub <- tab_sum_stat_sep_rev %>% 
-      mutate(Year = year(Start_date)) %>% 
-      filter(Year == y & Block_class == "breed") %>% 
+      filter(year(Start_date) == y & Block_class == "breed") %>% 
       st_as_sf(., coords = c("Long_centr", "Lat_centr"), crs = "EPSG:4326", remove = FALSE) %>% 
       group_by(Block_nr) %>%
       summarise(latlong = st_union(geometry)) %>% 
@@ -699,20 +716,62 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     dst_blk <- geodist(x = breed_sub %>% select(Long, Lat), measure = "geodesic", sequential = TRUE, quiet = TRUE)/1000
     
     if (any(dst_blk > 500)) {
-      long_blk_date <- tab_sum_stat_sep_rev %>% 
-        filter(Block_nr == breed_sub[which(dst_blk > 500)+1,]$Block_nr) %>% 
-        slice(1) %>% 
-        select(Start_date) %>% 
-        pull()
-      logger.info(paste0("Breeding block starting on", as.character(long_blk_date), "may be rather a long stopover during migration or pre-wintering grounds."))
+      # coordinates of the centroid of wintering cluster in K-means
+      win_coords <- t(kmeans_res$centers[status_order == "breed", ]) %>% 
+        data.frame() %>% 
+        rename(Long = "Long_centr", Lat = "Lat_centr")
+      
+      # coordinates of the centroids of breeding block > 500 km apart, and of the following breeding block
+      breed500_coords <- breed_sub[c(which(dst_blk > 500), which(dst_blk > 500)+1),] %>% 
+        select(Long, Lat)
+      
+      # distance between centroids of wintering cluster in K-means and centroids of breeding block > 500, and the following breeding block
+      dst_to_win <- geodist(win_coords, breed500_coords, measure = "geodesic", quiet = TRUE)/1000
+      
+      if (dst_to_win[1] > dst_to_win[2]) {
+        long_blk_date <- tab_sum_stat_sep_rev %>% 
+          filter(Block_nr == breed_sub[which(dst_blk > 500)+1,]$Block_nr & year(Start_date) == y) %>% 
+          slice(1) %>% 
+          select(Start_date) %>% 
+          pull()
+        logger.info(paste0("Breeding block starting on ", as.character(long_blk_date), " may be rather a stopover during migration, or pre-wintering grounds. Check the output!"))
+      } else {
+        long_blk_date <- tab_sum_stat_sep_rev %>% 
+          mutate(bks = case_when(Block_class == "breed" ~ 0,
+                                 Block_class != "breed" ~ 99)) %>% 
+          filter(Block_nr <= breed_sub[which(dst_blk > 500),]$Block_nr & bks == 0 & year(Start_date) == y) %>% 
+          slice(1) %>% 
+          select(Start_date) %>% 
+          pull()
+        logger.info(paste0("Breeding block starting on ", as.character(long_blk_date), " may be rather a stopover. Check the output!"))
+      }
+    }
     }
   }
   
+  # add classification into the original (but filtered) data set
+  data_out <- data %>% 
+    filter(event_id %in% as.numeric(dt_export_sep_rev$event_id)) %>% 
+    mutate(class_rec = dt_export_sep_rev$Block_class)
+    
+  # add bird ID into the summary output and change column order
+  tab_sum_stat_sep_rev <- tab_sum_stat_sep_rev %>% 
+    mutate(Bird_ID = bird_ID, .before = Block_nr) %>% 
+    select("Bird_ID", "First_row", "Last_row", "Block_nr", "Block_type", "Block_class", "Block_size", "Dist_next_stat", "Start_date", "End_date", "Days", "Hours", "Minutes", "Long_centr", "Lat_centr")
+  
+  
+  # add bird ID, rename some columns, and change order of the columns
+  dt_export_sep_rev <- dt_export_sep_rev %>% 
+    select(-c(event_id)) %>% 
+    mutate(Bird_ID = bird_ID, .before = timestamp) %>% 
+    rename(any_of(c(Speed_gr = "ground_speed", Timestamp = "timestamp"))) %>% 
+    select(any_of(c("Bird_ID", "Block_nr", "Block_type", "Block_class", "Block_size", "Dist_consec", "Speed_consec", "Speed_gr", "Year", "Month", "Day", "Hour", "Minute", "Second", "Timestamp", "Lat", "Long")))
+  
+
   # write the final output and summary output
   write.csv(tab_sum_stat_sep_rev, file = appArtifactPath(paste0("Classification_records_summary_", bird_ID, ".csv")), row.names = FALSE)
   write.csv(dt_export_sep_rev, file = appArtifactPath(paste0("Classification_records_", bird_ID, ".csv")), row.names = FALSE)
-  
-  return(list(tab_sum = tab_sum_stat_sep_rev, dt_class = dt_export_sep_rev))
-  
+
+  return(data_out)
 }
 
