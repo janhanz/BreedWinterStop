@@ -27,31 +27,30 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     return(max_migr_dst)
   }
   
+  if (gr_speed & !("ground_speed" %in% colnames(data))) {
+    stop("Ground speed is not available in the data and hence cannot be used!", call. = FALSE)
+  }
+  
   if (is.null(cap_status) & is.null(nest_coords)) {
-    logger.error("Error: Bird capture status or coordinates of the nest are required!")
-    return(data)
+    stop("Bird capture status or coordinates of the nest are required!", call. = FALSE)
   }
   
   if (!is.null(cap_status) & !is.null(nest_coords)) {
-    logger.error("Error: Only one of nest coordinates or bird capture status are allowed!")
-    return(data)
+    stop("Only one of nest coordinates or bird capture status are allowed!", call. = FALSE)
   }
   
   if (!is.null(cap_status)) {
     if (!(cap_status %in% c("winter", "breed"))) {
-      logger.error(paste0("Error: Invalid input of the bird breeding status! Only ‘winter’ or ‘breed’ are allowed."))
-      return(data)
+      stop(paste0("Error: Invalid input of the bird capture status! Only ‘winter’ or ‘breed’ are allowed."), call. = FALSE)
     }
   }
   
   if (bursts_rec & !gr_speed) {
-    logger.error("Error: Bursts can be preserved only when ground speed is used!")
-    return(data)
+    stop("Bursts can be preserved only when ground speed is used!", call. = FALSE)
   }
   
   if (clust_min_rec < 2) {
-    logger.error("Error: Minimum number of records in a stopover block checked for ‘outliers’ is 2!")
-    return(data)
+    stop("Minimum number of records in a stopover block checked for ‘outliers’ is 2!", call. = FALSE)
   }
 
   if(single_blk_merge) {
@@ -88,13 +87,8 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   #dt_raw <- data %>% 
   # rename(any_of(c(UTC_Timestamp = "timestamp", Hdop = "gps_hdop", SatCount = "gps_satellite_count", Speed_gr = "ground_speed")))
 
-  # load and pre-process the data set
-  # the auxiliary script filters the data for:
-  #  relevant time interval (since deployment to the end of tracking)
-  #  HDOP <= 5
-  #  number of GPS satellites >= 4
-  # it calculates time (minutes) between records, distance (metres) between records, and speed (m/s) between consecutive records
-  source("Prepare_data.R", local = TRUE)
+  # filtering and thinning of GPS records
+  dt <- prepare_data(data, bursts_rec, gr_speed, max_flight_sp)
   
   {
     # statistics of the loaded data set regarding time intervals
@@ -117,25 +111,20 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   
   # assign ground speed or speed between consecutive records to the variable Speed
   if (gr_speed) {
-    if (any(colnames(dt) == "ground_speed")) {
       dt$Speed <- as.numeric(dt$ground_speed)
-    } else {
-      logger.error("Error: Ground speed not available in the data set!\n")
-      return(data)
-    }
   } else {
     dt <- dt %>% 
       rename(Speed = "Speed_consec")
   }
   
   if (gr_speed) {
-    logger.info("Data on ground speed are used\n.")
+    logger.info("Data on ground speed are used.\n")
   } else {
     logger.info("Data on speed between consecutive records are used.\n")
   }
   
   ###
-  # k-means clustering of the data into fast and slow records
+  # k-means clustering of the data
   
   # distinguish two clusters (slow vs fast records)
   set.seed(10)
@@ -218,8 +207,8 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     }
     
     # pre-final data set
-    # keep ground speed in the data set (if available) even when not used for the classification
-    #   it can be used for additional filtering of slow_rec in breeding and wintering grounds in the final output
+    # keep ground speed in the data set (if available) even when it was not used for the classification
+    #   it can be used for additional filtering of records in breeding and wintering grounds in the final output
     dt_export <- dt %>% 
       select(any_of(c("event_id", "timestamp", "Lat", "Long", "Year", "Month", "Day", "Hour", "Minute", "Second",
                       "Speed", "ground_speed", "Dist_consec", "Time_consec", "Block_type"))) %>% 
@@ -416,7 +405,7 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
       if (nrow(dt_kmeans) == 2) {
         # centroids very close (i.e. < centr_dist in km) to each other suggest either wintering or breeding was not detected in the data set 
         if (max(as.numeric(geodist(dt_kmeans %>% select("Long_centr", "Lat_centr"), measure = "geodesic"))/1000) < centr_dist) {
-          logger.info("Breeding and wintering grounds very close to each other (i.e. < ", centr_dist, " km).")
+          logger.info(paste0("Breeding and wintering grounds very close to each other (i.e. < ", centr_dist, " km)."))
           dt_kmeans$Block_class <- rep(status_order[1], 2)
         } else {
           dt_kmeans$Block_class <- status_order
@@ -450,7 +439,7 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
       unnest(rowID) %>% 
       data.frame()
     
-    # replace "stationary" and "migration" by their final assignement
+    # replace "stationary" and "migration" by their final assignment
     dt_export$Block_type <- expand_tab_sum_stat$Block_type
     # add a column describing the seasonal status
     dt_export$Block_class <- expand_tab_sum_stat$Block_class
@@ -775,3 +764,151 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   return(data_out)
 }
 
+
+
+##########
+# helper function - prepare data
+
+prepare_data <- function(data, bursts_rec, gr_speed, max_flight_sp) {
+  # create Long and Lat (geometry column is expected)
+  dt_bird_coords <- data %>% 
+    st_coordinates() %>%
+    data.frame() %>% 
+    rename("Long" = X, "Lat" = Y)
+  
+  # combine the data set with coordinates
+  dt_bird <- bind_cols(data, dt_bird_coords) %>% 
+    data.frame() %>% 
+    st_as_sf()
+  
+  # variable selection - select relevant variables
+  #  drop rows and columns containing only NAs
+  #  break timestamp into separate columns
+  dt_bird <- dt_bird %>% 
+    mutate(timestamp = mt_time(data)) %>% 
+    select(any_of(c("event_id", "Long", "Lat", "timestamp", "ground_speed", "gps_hdop", "gps_satellite_count"))) %>% 
+    filter(if_any(everything(), ~ !is.na(.))) %>% 
+    mutate(Year = year(timestamp), 
+           Month = month(timestamp), 
+           Day = day(timestamp),
+           Hour = hour(timestamp),
+           Minute = minute(timestamp),
+           Second = second(timestamp)) %>% 
+    select_if(~ !all(is.na(.)))
+  
+  # remove rows with NA coordinates
+  if (any(is.na(dt_bird$Long) | is.na(dt_bird$Lat))) {
+    logger.info("NAs in Lat or Long! Removing rows with incomplete coordinates.\n")
+    dt_bird <- dt_bird %>% 
+      filter(!is.na(Long) & !is.na(Lat))
+  }
+  
+  # remove rows with any NAs
+  if (any(is.na(dt_bird))) {
+    logger.info("NAs in other variables! Removing rows with incomplete records.\n")
+    dt_bird <- dt_bird %>%
+      filter(!if_any(everything(), is.na))
+  }
+  
+  # convert ground speed to numeric
+  if("ground_speed" %in% colnames(dt_bird)) {
+    dt_bird <- dt_bird %>% 
+      mutate(ground_speed = as.numeric(ground_speed))
+  }
+  
+  # check the percentage of records with HDOP >5
+  if ("gps_hdop" %in% colnames(dt_bird)) {
+    logger.info(paste0("Data contains ", round(nrow(dt_bird[as.numeric(dt_bird$gps_hdop) > 5,])/nrow(dt_bird)*100,1)," % of records with HDOP >5."))
+  } else {
+    logger.info(paste0("HDOP not available in the data."))
+  }
+  
+  # check the percentage of records with GPS fixes of <4 satellites
+  if ("gps_satellite_count" %in% colnames(dt_bird)) {
+    logger.info(paste0("Data contains ", round(nrow(dt_bird[as.numeric(dt_bird$gps_satellite_count) < 4,])/nrow(dt_bird)*100,1)," % of records with GPS fixes of <4 satellites."))
+  } else {
+    logger.info(paste0("Number of satellites not available in the data."))
+  }
+  
+  # filtering of rows with sufficient satellites in fix and gps_hdop values
+  dt_sub <- dt_bird %>% 
+    filter(if_any(matches("gps_satellite_count"),  \(gps_satellite_count) as.numeric(gps_satellite_count) >= 4)) %>% 
+    filter(if_any(matches("gps_hdop"),  \(gps_hdop) as.numeric(gps_hdop) <= 5))
+  
+  # proportion of the original data after filtering by gps_hdop and gps_satellite_count
+  if ("gps_hdop" %in% colnames(dt_bird) | "gps_satellite_count" %in% colnames(dt_bird)) {
+    logger.info(paste0("Data contains ", round(nrow(dt_sub)/nrow(dt_bird)*100,1), " % of the original data."))
+  }
+  
+  
+  ### data thinning
+  
+  # apply data thinning to at least 1-min interval if duplicated coordinates are present, but not when bursts should be preserved
+  if (dt_sub %>% select(geometry, timestamp) %>% n_distinct() != nrow(dt_sub) & !bursts_rec) {
+    
+    logger.info("Duplicate coordinates (likely due to bursts)! Thinning of 1 min is applied.\n")
+    
+    # start at the first record
+    time_start <- dt_sub$timestamp[1]
+    # create empty selection vector 
+    vec_sel <- vector("list", nrow(dt_sub))
+    # first record will be always selected
+    vec_sel[[1]] <- TRUE
+    
+    for (i in 2:nrow(dt_sub)) {
+      if (difftime(dt_sub$timestamp[i], time_start, units = "min") < 1) {
+        vec_sel[[i]] <- FALSE
+      } else {
+        vec_sel[[i]] <- TRUE
+        time_start <- dt_sub$timestamp[i]
+      }
+    }
+    
+    dt_sub$sel <- unlist(vec_sel)
+    
+    # filter relevant records (sel == TRUE)
+    dt_sub <- dt_sub %>% 
+      filter(sel == TRUE) %>% 
+      select(-c(sel))
+    
+    # what share of original data has left after data thinning?
+    logger.info(paste0("Thinned data contains", round(nrow(dt_sub)/nrow(dt_sub_orig)*100,1), "% of the filtered data."))
+  }
+  
+  
+  ### calculation of distances (in meters), time intervals (in minutes) and speed (m/s) for consecutive records
+  
+  dt <- dt_sub %>%
+    mutate(
+      Dist_consec = c(as.numeric(geodist(select(., Long, Lat), measure = "geodesic", sequential = TRUE)), NA),
+      Time_consec = c(as.numeric(difftime(timestamp[-1], timestamp[-n()], units = "mins")), NA),
+      Speed_consec = if (!gr_speed) Dist_consec / (Time_consec * 60) else NULL
+    )
+  
+  # select the desired speed
+  speed_sel <- ifelse(gr_speed, "ground_speed", "Speed_consec")
+  
+  # drop rows with speed > max_flight_sp m/s, which are likely nonsensical
+  if (any(dt[[speed_sel]] > max_flight_sp, na.rm = TRUE)) {
+    logger.info(paste0("Too high speed of flight (> ", max_flight_sp, " m/s), dropping rows: ", 
+                       paste(which(dt[[speed_sel]] > max_flight_sp), collapse = ", ")))
+    
+    # filter rows and recalculate the parameters
+    dt <- dt %>% 
+      filter(dt[[speed_sel]] <= max_flight_sp) %>% 
+      mutate(
+        Dist_consec = c(as.numeric(geodist(select(., Long, Lat), measure = "geodesic", sequential = TRUE)), NA),
+        Time_consec = c(as.numeric(difftime(timestamp[-1], timestamp[-n()], units = "mins")), NA),
+        Speed_consec = if (!gr_speed) Dist_consec / (Time_consec * 60) else NULL
+      )
+  }
+  
+  # drop the last row as distance, time, and Speed_consec (if available) is NA (no consecutive row)
+  dt  <- dt %>% 
+    filter(row_number() <= n()-1)
+  
+  # check the data time range
+  logger.info(paste0("Data range is from ", as.character(range(date(dt$timestamp)))[1], " to ", as.character(range(date(dt$timestamp)))[2],"\n"))
+  
+  return(dt)
+}

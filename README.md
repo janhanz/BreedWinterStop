@@ -10,7 +10,7 @@ An algorithm distinguishing migration from stationary (non-migration) records in
 
 ## Documentation
 
-The App was developed for the purpose of automated detection of breeding sites, wintering sites, and stopovers in multi-year GPS tracking data of migratory birds investigated in the [HABITRACK](https://habitrack.eu/?lang=en) project.
+The App was developed for the purpose of automated detection of breeding sites, wintering sites, and stopovers in multiyear GPS tracking data of migratory birds investigated in the [HABITRACK](https://habitrack.eu/?lang=en) project.
 
 <p align="center">
 
@@ -24,7 +24,7 @@ The algorithm uses either the speed between consecutive records or ground speed 
 
 #### Generality of App usability
 
-This App was developed to identify breeding and wintering grounds and stopover sites in GPS tracking data of Eurasian Curlew (*Numenius arquata*), and was also tested on the tracking data of other bird species in the HABITRACK project. It should be able to distinguish the mentioned stages of the annual cycle in many migratory bird species if the migration movement is distinguished from the stationary stages by clearly different speeds and if the time spent on breeding or wintering grounds is substantially different from the length of stays in stopovers. Otherwise, blocks of breeding or wintering grounds may be distinguished in unexpected locations and needs to be checked manually for their relevancy.
+This App was developed to identify breeding and wintering grounds and stopover sites in GPS tracking data of Eurasian Curlew (*Numenius arquata*), and was also tested on the tracking data of other bird species in the [HABITRACK](https://habitrack.eu/?lang=en) project. It should be able to distinguish the mentioned stages of the annual cycle in many migratory bird species if the migration movement is distinguished from the stationary stages by clearly different speeds and if the time spent on breeding or wintering grounds is substantially different from the length of stays in stopovers. Otherwise, blocks of breeding or wintering grounds may be distinguished in unexpected locations and needs to be checked manually for their relevancy.
 
 #### Required data properties
 
@@ -84,12 +84,16 @@ The input data is filtered according to the user settings. Classification of the
 
 The data is too large to fit into memory during the calculation of distance matrices.
 
+Incorrect input settings or invalid combinations of input settings.
+
 ### Null or error handling
 
 Memory shortage may be resolved by thinning the data.
 
-Incorrect settings or invalid combinations of the settings result in printing an error message, and the input data is returned.
+Incorrect settings or invalid combinations of the settings result in printing an error message specifying the issues. No output is returned.
 
 ### Acknowledgements
+
+Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Executive Agency (REA). Neither the European Union nor the granting authority can be held responsible for them.
 
 <img src="images/EN_FundedbytheEU_RGB_POS.png" width="600"/>
