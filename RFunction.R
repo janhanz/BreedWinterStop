@@ -739,10 +739,11 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   }
   
   # add classification into the original (but filtered) data set
-  data_out <- data %>% 
-    filter(event_id %in% as.numeric(dt_export_sep_rev$event_id)) %>% 
-    mutate(class_rec = dt_export_sep_rev$Block_class)
-    
+  data_out <- data %>%
+    filter(event_id %in% as.numeric(dt_export_sep_rev$event_id)) %>%
+    left_join(dt_export_sep_rev %>% select(event_id, Block_class), by = "event_id") %>%
+    rename(class_rec = Block_class)
+  
   # add bird ID into the summary output and change column order
   tab_sum_stat_sep_rev <- tab_sum_stat_sep_rev %>% 
     mutate(Bird_ID = bird_ID, .before = Block_nr) %>% 
