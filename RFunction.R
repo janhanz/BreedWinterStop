@@ -83,6 +83,10 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   # obtain bird_ID of a given individual
   bird_ID <- as.character(unique(mt_track_id(data)))
   
+  logger.info(Sys.getlocale())
+  
+  logger.info(paste0("Bird ID is", bird_ID))
+  
   # rename essential and optional variables
   #dt_raw <- data %>% 
   # rename(any_of(c(UTC_Timestamp = "timestamp", Hdop = "gps_hdop", SatCount = "gps_satellite_count", Speed_gr = "ground_speed")))
@@ -335,7 +339,7 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     }
     
     ###
-    # rules for distinguishing "breeding" and "winering":
+    # rules for distinguishing "breeding" and "wintering":
     # the first block is classified using cap_status value or nest_coords defined initially by the user
     # other blocks in the same cluster are then classified into the same category as in the first block
     # rest of the blocks are assigned to the other category (i.e. that one not assigned to cap_status)
@@ -647,8 +651,8 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   
   # recalculate the metrics in summary output
   tab_sum_stat_sep_rev <- dt_export_sep_rev %>%
+	mutate("row_nb" = as.numeric(rownames(.))) %>% 
     filter(Block_type == "stationary") %>% 
-    mutate("row_nb" = as.numeric(rownames(.))) %>% 
     st_as_sf(., coords = c("Long", "Lat"), crs = "EPSG:4326", remove = FALSE) %>% 
     group_by(Block_nr, Block_type, Block_class) %>%
     summarise(Start_date = min(timestamp),

@@ -1,8 +1,8 @@
 {
-	"cap_status": "winter",
+	"cap_status": "breed",
 	"nest_coords": null,
 	"single_blk_merge": true,
-	"gr_speed": true,
+	"gr_speed": false,
 	"bursts_rec": false,
 	"max_flight_sp": 40,
 	"dst_stat_gap": 30,
