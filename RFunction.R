@@ -13,6 +13,7 @@ library('sf')
 library('stringr')
 library('tidyr')
 
+
 rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_merge = TRUE, gr_speed = FALSE, bursts_rec = FALSE,
                      max_flight_sp = 40, dst_stat_gap = 30, time_stat_gap = 3, centr_dist = 50, near_blk_dist = 20, near_stop_rec = 1, 
                      near_stat_dist = 5, clust_min_rec = 2, br_win_min = 30) {
@@ -85,7 +86,7 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
   
   logger.info(Sys.getlocale())
   
-  logger.info(paste0("Bird ID is", bird_ID))
+  logger.info(paste0("Bird ID is ", bird_ID))
   
   # rename essential and optional variables
   #dt_raw <- data %>% 
@@ -760,8 +761,9 @@ rFunction = function(data, cap_status = NULL, nest_coords = NULL, single_blk_mer
     mutate(Bird_ID = bird_ID, .before = timestamp) %>% 
     rename(any_of(c(Speed_gr = "ground_speed", Timestamp = "timestamp"))) %>% 
     select(any_of(c("Bird_ID", "Block_nr", "Block_type", "Block_class", "Block_size", "Dist_consec", "Speed_consec", "Speed_gr", "Year", "Month", "Day", "Hour", "Minute", "Second", "Timestamp", "Lat", "Long")))
-  
 
+  logger.info(appArtifactPath(paste0("Classification_records_summary_", bird_ID, ".csv")))
+  
   # write the final output and summary output
   write.csv(tab_sum_stat_sep_rev, file = appArtifactPath(paste0("Classification_records_summary_", bird_ID, ".csv")), row.names = FALSE)
   write.csv(dt_export_sep_rev, file = appArtifactPath(paste0("Classification_records_", bird_ID, ".csv")), row.names = FALSE)
