@@ -46,6 +46,8 @@ The App may provide acceptable classification results even for data with a lower
 
 `"Classification_records_", bird_ID, ".csv"`: CSV file with the complete output. It shows `Bird_ID`, and for each record, block number (`Block_nr`), `Block_type` (stationary or migration), `Block_class` (migration, wintering, breeding, stopover site), `Block_size` (in km), distance to the next record (`Dist_consec`, in m), consecutive and/or ground speed (`Speed_consec` or `Speed_gr`, in m/s), separately the `Year`, `Month`, `Day`, `Hour`, `Minute` and `Second`, the UTC `Timestamp`, and WGS84 coordinates (`Long`, `Lat`).
 
+Note that bird_ID in the filenames is temporarily transliterated to ASCII, i.e., special characters like á or ö are changed to a or o, respectively, if present.
+
 ### Settings
 
 **Capture status of a bird** (`cap_status`): Capture status of a bird during tagging. ‘winter’ when tagged on the wintering grounds, ‘breed’ when tagged on the breeding grounds. Birds tagged at stopover sites should be assigned to ‘winter’ if the location is closer to assumed wintering grounds, and ‘breed’ if closer to assumed breeding grounds. Alternatively, nest coordinates can be supplied.
