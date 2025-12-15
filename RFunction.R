@@ -38,7 +38,7 @@ rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords 
                                near_stat_dist = near_stat_dist, clust_min_rec = clust_min_rec, br_win_min = br_win_min)
       
       # export the form
-      write.csv(input_form, file = appArtifactPath(paste0("Input_form.csv")), row.names = FALSE)
+      write.csv(input_form, file = appArtifactPath(paste0("input_form.csv")), row.names = FALSE)
       logger.info("Input file with default parameters for each individual is ready. Please review the file.")
       logger.info("Terminating the App.")
       return(invisible(NULL))
@@ -51,13 +51,13 @@ rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords 
       nest_coords <- if (is.null(nest_coords)) NA else paste0("Long = ", nest_coords[1], ", Lat = ", nest_coords[2])
       
       # ignore the input form when supplied for the analysis of a single individual
-      form_file_name <- getAuxiliaryFilePath("Input_form")
+      form_file_name <- getAuxiliaryFilePath("input_form")
       if (!is.null(form_file_name)) {
         logger.info("Provided csv file with parameter settings is ignored as redundant in a single individual analysis.")
       }
     } else {
       # load the input file (the form) with parameter values
-      form_file_name <- getAuxiliaryFilePath("Input_form")
+      form_file_name <- getAuxiliaryFilePath("input_form")
       if (!is.null(form_file_name)) {
         input_form <- read_delim(form_file_name, delim = NULL, show_col_types = FALSE)
         # check if colnames match with names of parameters in App settings
