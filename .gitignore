@@ -6,3 +6,6 @@
 data/output/**
 !data/output/.keep
 tests/testthat/plot.png
+notes.txt
+RFunction.R.bck
+app-configuration.json.bck

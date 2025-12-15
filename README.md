@@ -32,6 +32,8 @@ The App is designed to use GPS tracking data with a structure as defined in Move
 
 The App may provide acceptable classification results even for data with a lower frequency of fixes around 30 to 60 minutes.
 
+Tracking data including multiple individuals is accepted for classification.
+
 ### Input type
 
 `move2::move2_loc` object in Movebank format
@@ -42,11 +44,17 @@ The App may provide acceptable classification results even for data with a lower
 
 ### Artefacts
 
+`"Input_form.csv"`: CSV file with all parameters defined in Settings. Mandatory for classification of multi-individual tracking data.
+
 `"Classification_records_summary_", bird_ID, ".csv"`: CSV file with a summary of stationary blocks of records. It shows `Bird_ID`, the range of rows (`First_row`, `Last_row`) for each block, number of each block (`Block_nr`), `Block_type` (stationary or migration), `Block_class` (breeding, wintering, stopover sites), `Block_size` (in km), distance to the consecutive stationary block (`Dist_next_stat`, in km), UTC time and calendar date (`Start_date`, `End_date`) and duration of stay in each block (separately in `Days`, `Hours`, and `Minutes`), and WGS84 coordinates (longitude, latitude) of the centroids of the blocks (`Long_centr`, `Lat_centr`), corresponding to the output file.
 
 `"Classification_records_", bird_ID, ".csv"`: CSV file with the complete output. It shows `Bird_ID`, and for each record, block number (`Block_nr`), `Block_type` (stationary or migration), `Block_class` (migration, wintering, breeding, stopover site), `Block_size` (in km), distance to the next record (`Dist_consec`, in m), consecutive and/or ground speed (`Speed_consec` or `Speed_gr`, in m/s), separately the `Year`, `Month`, `Day`, `Hour`, `Minute` and `Second`, the UTC `Timestamp`, and WGS84 coordinates (`Long`, `Lat`).
 
+`"Log_classif_", study_id, ".txt"`: TXT file with log of the classification process.
+
 ### Settings
+
+**Prepare classification parameters or run classification** (`prep_class`): Choose if an input form with classification parameters should be prepared, or the form (`Input_form.csv`) is ready for classification. The input form with default settings needs to be reviewed. Note that the input form is not used for clasification of single individual tracking data – then set the parameters below.
 
 **Capture status of a bird** (`cap_status`): Capture status of a bird during tagging. ‘winter’ when tagged on the wintering grounds, ‘breed’ when tagged on the breeding grounds. Birds tagged at stopover sites should be assigned to ‘winter’ if the location is closer to assumed wintering grounds, and ‘breed’ if closer to assumed breeding grounds. Alternatively, nest coordinates can be supplied.
 
@@ -75,6 +83,8 @@ The App may provide acceptable classification results even for data with a lower
 **Distance for detection of new stationary blocks** (`near_stat_dist`): Distance above which the neighbouring records in a stationary block are assigned to a new block. Units: `km` (default 5)
 
 **Minimum length of a breeding or wintering block** (`br_win_min`): Minimum length of a block of records to be recognized as breeding or wintering grounds. Units: `days` (default 30, i.e. a period a bit longer than the length of the incubation period in Curlew)
+
+**Input form with parameter settings for each individual** (`input_form`): Please upload a single csv file `Input_form.csv` if data on multiple individuals will be classified.
 
 ### Changes in output data
 

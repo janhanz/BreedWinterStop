@@ -1,6 +1,23 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "settings": [
+    	{
+      "id": "prep_class",
+      "name": "Prepare classification parameters or run classification",
+      "description": "Choose if an input form with classification parameters should be prepared, or the form is ready for classification. The input form with default settings needs to be reviewed. Note that the input form is not used for clasification of single individual tracking data – then set the parameters below.",
+      "defaultValue": "class",
+      "type": "RADIOBUTTONS",
+      "options": [
+		{
+          "value": "prep",
+          "displayText": "Prepare the input form."
+        },
+		{
+          "value": "class",
+          "displayText": "The form is ready to upload (or not needed in case of a single-individual data set). Run classification of the tracking data."
+        }
+      ]
+    },
     {
       "id": "cap_status",
       "name": "Capture status of a bird",
@@ -98,15 +115,27 @@
       "description": "Minimum length (days) of a block of records to be recognized as breeding or wintering grounds. Default value is 30 days.",
       "defaultValue": 30,
       "type": "DOUBLE"
+    },
+    {
+      "id": "input_form",
+      "name": "Input form with parameter settings for each individual.",
+      "description": "Please upload a single csv file if data on multiple individuals will be classified.",
+      "type": "USER_FILE"
     }
     ],
   "dependencies": {
     "R": [
       {
+        "name": "doFuture"
+      },
+      {
         "name": "dplyr"
       },
       {
         "name": "fpc"
+      },
+      {
+        "name": "future"
       },
       {
         "name": "geodist"
@@ -119,6 +148,9 @@
       },
       {
         "name": "purrr"
+      },
+      {
+        "name": "readr"
       },
       {
         "name": "sf"

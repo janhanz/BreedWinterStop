@@ -1,5 +1,6 @@
 {
-	"cap_status": "winter",
+	"prep_class": "class",
+	"cap_status": null,
 	"nest_coords": null,
 	"single_blk_merge": true,
 	"gr_speed": true,
