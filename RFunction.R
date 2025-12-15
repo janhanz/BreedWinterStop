@@ -18,7 +18,7 @@ library('tidyr')
 
 rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords = NULL, single_blk_merge = TRUE, gr_speed = FALSE, bursts_rec = FALSE,
                      max_flight_sp = 40, dst_stat_gap = 30, time_stat_gap = 3, centr_dist = 50, near_blk_dist = 20, near_stop_rec = 1, 
-                     near_stat_dist = 5, clust_min_rec = 2, br_win_min = 30) {
+                     near_stat_dist = 5, clust_min_rec = 2, br_win_min = 30, ...) {
 
   # obtain bird_ID
   bird_ID <- as.character(unique(mt_track_id(data)))
