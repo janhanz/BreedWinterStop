@@ -18,7 +18,7 @@ library('tidyr')
 
 rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords = NULL, single_blk_merge = TRUE, gr_speed = FALSE, bursts_rec = FALSE,
                      max_flight_sp = 40, dst_stat_gap = 30, time_stat_gap = 3, centr_dist = 50, near_blk_dist = 20, near_stop_rec = 1, 
-                     near_stat_dist = 5, clust_min_rec = 2, br_win_min = 30, ...) {
+                     near_stat_dist = 5, clust_min_rec = 2, br_win_min = 30, migr_start = NULL, ...) {
 
   # obtain bird_ID
   bird_ID <- as.character(unique(mt_track_id(data)))
@@ -31,14 +31,15 @@ rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords 
       # convert NULL to NA
       cap_status <- if (is.null(cap_status)) NA else cap_status
       nest_coords <- if (is.null(nest_coords)) NA else paste0("Long = ", nest_coords[1], ", Lat = ", nest_coords[2])
+      migr_start <- if (is.null(migr_start)) NA else migr_start
       
       # input form with user set parameters (or default values if not changed) 
-      input_form <- data.frame(ID = bird_ID, cap_status = cap_status, nest_coords = nest_coords, single_blk_merge = single_blk_merge, gr_speed = gr_speed, bursts_rec = bursts_rec,
+      input_form_file <- data.frame(ID = bird_ID, cap_status = cap_status, nest_coords = nest_coords, single_blk_merge = single_blk_merge, gr_speed = gr_speed, bursts_rec = bursts_rec,
                                max_flight_sp = max_flight_sp, dst_stat_gap = dst_stat_gap, time_stat_gap = time_stat_gap, centr_dist = centr_dist, near_blk_dist = near_blk_dist, near_stop_rec = near_stop_rec, 
-                               near_stat_dist = near_stat_dist, clust_min_rec = clust_min_rec, br_win_min = br_win_min)
+                               near_stat_dist = near_stat_dist, clust_min_rec = clust_min_rec, br_win_min = br_win_min, migr_start = migr_start)
       
       # export the form
-      write.csv(input_form, file = appArtifactPath(paste0("input_form.csv")), row.names = FALSE)
+      write.csv(input_form_file, file = appArtifactPath(paste0("input_form.csv")), row.names = FALSE)
       logger.info("Input file with default parameters for each individual is ready. Please review the file.")
       logger.info("Terminating the App.")
       return(invisible(NULL))
@@ -49,6 +50,7 @@ rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords 
       # convert NULL to NA
       cap_status <- if (is.null(cap_status)) NA else cap_status
       nest_coords <- if (is.null(nest_coords)) NA else paste0("Long = ", nest_coords[1], ", Lat = ", nest_coords[2])
+      migr_start <- if (is.null(migr_start)) NA else migr_start
       
       # ignore the input form when supplied for the analysis of a single individual
       form_file_name <- getAuxiliaryFilePath("input_form")
@@ -59,16 +61,16 @@ rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords 
       # load the input file (the form) with parameter values
       form_file_name <- getAuxiliaryFilePath("input_form")
       if (!is.null(form_file_name)) {
-        input_form <- read_delim(form_file_name, delim = NULL, show_col_types = FALSE)
+        input_form_file <- read_delim(form_file_name, delim = NULL, show_col_types = FALSE)
         # check if colnames match with names of parameters in App settings
         if (identical(c("ID", "cap_status", "nest_coords", "single_blk_merge", "gr_speed", "bursts_rec", "max_flight_sp", "dst_stat_gap", "time_stat_gap", "centr_dist", "near_blk_dist", "near_stop_rec", "near_stat_dist",
-                        "clust_min_rec", "br_win_min"), names(input_form))) {
+                        "clust_min_rec", "br_win_min", "migr_start"), names(input_form_file))) {
           logger.info("A csv file with parameter settings has been loaded.")
         } else {
           stop("The csv file (Input form) does not include all required columns!", call. = FALSE)
         }
         # split the form into the original variables provided in App settings
-        list2env(input_form, envir = environment())
+        list2env(input_form_file, envir = environment())
       } else {
         # stop when form is missing
         stop("csv file with parameter settings is needed for classification!", call. = FALSE)
@@ -133,6 +135,12 @@ rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords 
         
         if (clust_min_rec[b] < 2) {
           stop("Minimum number of records in a stopover block checked for ‘outliers’ is 2!", call. = FALSE)
+        }
+        
+        if (!is.na(migr_start[b])) {
+          if(!grepl("^[0-9]{2}[A-Za-z]{3}$", migr_start[b]) | is.na(dmy(paste0(migr_start[b], year(Sys.Date())), locale = "C"))) {
+            stop("Incorrect format of the onset of migration!", call. = FALSE)
+          }
         }
       }, error = function(e) stop(e))
       
@@ -767,10 +775,40 @@ rFunction = function(data, prep_class = "class", cap_status = NULL, nest_coords 
       
       if (dt_export_sep_rev %>% 
           filter(Block_class == "breed" & Month %in% c(7,8)) %>% 
-          nrow > 1) {
+          nrow > 1 & 
+          match(substr(migr_start[b], 3, 5), month.abb) > 8) {
         logger.info("Breeding blocks appeared in months of July or August.")
         logger.info("Check if this classification is relevant, i.e. the bird stayed in the breeding area for summer.")
         logger.info("Otherwise, a long stopover during migration (pre-wintering) might be mistaken for breeding.")
+      }
+      
+      # reclassify breeding blocks appearing after the onset of migration as non-breeding blocks
+      if (!is.na(migr_start[b])) {
+        for (y in unique(year(tab_sum_stat_sep_rev$Start_date))) {
+          # migration onset as date
+          migr_start_date <- dmy(paste0(migr_start[b], y), locale = "C")
+          # block numbers to be reclassified to "nonbr"
+          reclass_blk <- tab_sum_stat_sep_rev %>% 
+            filter(year(Start_date) == y & Block_class == "breed" & End_date >= migr_start_date) %>% 
+            pull(Block_nr)
+          
+          if(length(reclass_blk) == 0) next
+          
+          tab_sum_stat_sep_rev <- tab_sum_stat_sep_rev %>% 
+            mutate(Block_class = case_when(Block_nr %in% reclass_blk ~ "nonbr",
+                                           TRUE ~ Block_class))
+          
+          dt_export_sep_rev <- dt_export_sep_rev %>% 
+            mutate(Block_class = case_when(Block_nr %in% reclass_blk ~ "nonbr",
+                                           TRUE ~ Block_class))
+          
+          reclass_start_date <- tab_sum_stat_sep_rev %>% 
+            filter(Block_nr == reclass_blk[1]) %>% 
+            pull(Start_date) %>% 
+            as.Date()
+          
+          logger.info(paste0("Breeding blocks in year ", y, " starting on ", as.character(reclass_start_date), " were reclassified as non-breeding blocks.\n"))
+        }
       }
       
       # print a warning if another breeding grounds, located more than 500 km apart, were identified in a given year
