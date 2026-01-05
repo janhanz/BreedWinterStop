@@ -84,6 +84,8 @@ Tracking data including multiple individuals is accepted for classification.
 
 **Minimum length of a breeding or wintering block** (`br_win_min`): Minimum length of a block of records to be recognized as breeding or wintering grounds. Units: `days` (default 30, i.e. a period a bit longer than the length of the incubation period in Curlew)
 
+**Date of the start of autumn migration** (`migr_start`): Estimated date of the start of autumn migration, formatted as day and month abbreviation, for instance '01Jul' for 1 July. Optional parameter. Units: `date` (no default)
+
 **Input form with parameter settings for each individual** (`input_form`): Please upload a single csv file `Input_form.csv` if data on multiple individuals will be classified.
 
 ### Changes in output data
