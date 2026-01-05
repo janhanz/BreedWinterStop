@@ -117,6 +117,13 @@
       "type": "DOUBLE"
     },
     {
+      "id": "migr_start",
+      "name": "Date of the start of autumn migration.",
+      "description": "Estimated date of the start of autumn migration, formatted as day and month abbreviation, for instance '01Jul' for 1 July. Optional parameter.",
+      "defaultValue": null,
+      "type": "STRING"
+    },
+    {
       "id": "input_form",
       "name": "Input form with parameter settings for each individual.",
       "description": "Please upload a single csv file if data on multiple individuals will be classified.",
