@@ -13,5 +13,6 @@
 	"near_stop_rec": 1, 
 	"near_stat_dist": 5,
 	"clust_min_rec": 2,
-	"br_win_min": 30
+	"br_win_min": 30,
+	"migr_start": null
 }
